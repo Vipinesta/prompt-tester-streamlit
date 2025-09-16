@@ -15,43 +15,8 @@ def call_n8n_webhook(webhook_url: str, payload: dict, auth_header: Optional[str]
     except ValueError:
         return resp.text
 
-# --- Styling: subtle card-like UI for tasks ---
-st.markdown(
-    """
-    <style>
-    /* Card around each task expander */
-    .stExpander > div[data-testid="stExpander"] {
-        border-radius: 10px;
-        padding: 0.25rem 0.5rem;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.18);
-        background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00));
-    }
-    /* Improve JSON/code block padding */
-    .stCodeBlock, pre {
-        border-radius: 8px;
-        padding: 0.75rem;
-        background-color: rgba(0,0,0,0.45) !important;
-        color: #d6f8ff !important;
-        overflow-x: auto;
-    }
-    /* Smaller metadata text */
-    .task-meta {
-        font-size: 0.92rem;
-        color: #bfc7cd;
-    }
-    /* Headline spacing */
-    .structured-output {
-        margin-top: 1rem;
-        margin-bottom: 1rem;
-        padding: 0.25rem;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
 st.title("⚡ Prompt Testing Playground")
-st.write("Enter a query and hit **Run test** — output now presented in an improved UI.")
+st.write("Enter a query and hit **Run test**")
 
 with st.form("prompt_form"):
     query = st.text_area("User Query", height=160, placeholder="Enter the query here...")
@@ -72,68 +37,20 @@ if submitted:
                     result = call_n8n_webhook(webhook_url, payload, auth_header=auth_header)
 
                     st.subheader("Structured Output")
-                    st.markdown('<div class="structured-output"></div>', unsafe_allow_html=True)
-
                     try:
-                        # Extract tasks from possible locations
+                        # Extract tasks
                         tasks_raw = None
                         if isinstance(result, dict):
                             tasks_raw = result.get("output", {}).get("tasks")
                             if tasks_raw is None:
                                 tasks_raw = result.get("tasks")
-                        else:
-                            tasks_raw = None
 
                         if tasks_raw and isinstance(tasks_raw, list):
                             for idx, task in enumerate(tasks_raw, start=1):
                                 if isinstance(task, dict):
-                                    # Normalization for both legacy and new keys
-                                    task_id = task.get("task_id") or task.get("id") or f"t{idx}"
-                                    description = task.get("description") or task.get("title") or (
-                                        (list(task.values())[0] if len(task) == 1 else None)
-                                    )
-                                    order = task.get("order") or task.get("position") or idx
-                                    input_data = task.get("input_data") or task.get("params") or {}
-                                    dependencies = task.get("dependencies") or task.get("depends_on") or []
-
-                                    # Nice expander per task
-                                    expander_title = f"Task {order} — {task_id}"
-                                    with st.expander(expander_title, expanded=True):
-                                        # Description / title
-                                        if description:
-                                            st.write(description)
-                                        else:
-                                            st.write("_No description provided_")
-
-                                        # Two-column metadata + payload
-                                        left, right = st.columns([2, 1])
-                                        with left:
-                                            st.subheader("Input Data")
-                                            # st.json shows nice formatted JSON with interactive folding
-                                            if input_data:
-                                                st.json(input_data)
-                                            else:
-                                                st.info("No input parameters.")
-
-                                        with right:
-                                            st.subheader("Metadata")
-                                            st.markdown(f"<div class='task-meta'><strong>Order:</strong> {order}</div>", unsafe_allow_html=True)
-                                            # Dependencies
-                                            st.markdown("<div class='task-meta'><strong>Dependencies:</strong></div>", unsafe_allow_html=True)
-                                            if dependencies:
-                                                for dep in dependencies:
-                                                    st.markdown(f"- `{dep}`")
-                                            else:
-                                                st.markdown("_None_")
-
-                                        # Compact raw view for debugging if needed
-                                        with st.expander("Show raw task JSON", expanded=False):
-                                            st.code(json.dumps(task, indent=2))
-
-                                        st.markdown("---")
+                                    st.code(json.dumps(task, indent=2), language="json")
                                 else:
-                                    # primitive task representation
-                                    st.write(f"Task {idx} - {task}")
+                                    st.write(task)
                         else:
                             st.warning("No tasks found in response.")
                     except Exception as e:
